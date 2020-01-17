@@ -15,6 +15,17 @@
 # limitations under the License.
 
 # [START dataproc_quickstart]
+"""This quickstart sample walks a user through creating a Cloud Dataproc
+    cluster, submitting a PySpark job from Google Cloud Storage to the
+    cluster, reading the output of the job and deleting the cluster, all
+    using the Python client library.
+
+    Usage:
+        python quickstart.py --project_id <PROJECT_ID> --region <REGION> \
+            --cluster_name <CLUSTER_NAME> --job_file_path <GCS_JOB_FILE_PATH>
+"""
+
+import argparse
 import time
 
 from google.cloud import dataproc_v1 as dataproc
@@ -22,17 +33,6 @@ from google.cloud import storage
 
 
 def quickstart(project_id, region, cluster_name, job_file_path):
-    """This quickstart sample walks a user through creating a Cloud Dataproc 
-       cluster, submitting a PySpark job from Google Cloud Storage to the 
-       cluster, reading the output of the job and deleting the cluster, all 
-       using the Python client library.
-    """
-    # TODO(developer): Uncomment and set the following variables.
-    # project_id = 'YOUR_PROJECT_ID'
-    # region = 'YOUR_CLUSTER_REGION'
-    # cluster_name = 'YOUR_CLUSTER_NAME'
-    # job_file_path = 'YOUR_GCS_JOB_FILE_PATH'
-
     # Create the cluster client.
     cluster_client = dataproc.ClusterControllerClient(client_options={
         'api_endpoint': '{}-dataproc.googleapis.com:443'.format(region)
@@ -46,12 +46,12 @@ def quickstart(project_id, region, cluster_name, job_file_path):
             'master_config': {
                 'num_instances': 1,
                 'machine_type_uri': 'n1-standard-1'
-        },
+            },
             'worker_config': {
                 'num_instances': 2,
-                 'machine_type_uri': 'n1-standard-1'
+                'machine_type_uri': 'n1-standard-1'
+            }
         }
-      }
     }
 
     # Create the cluster.
@@ -72,7 +72,7 @@ def quickstart(project_id, region, cluster_name, job_file_path):
         },
         'pyspark_job': {
             'main_python_file_uri': job_file_path
-        }  
+        }
     }
 
     job_response = job_client.submit_job(project_id, region, job)
@@ -89,28 +89,29 @@ def quickstart(project_id, region, cluster_name, job_file_path):
 
     # Create a timeout such that the job gets cancelled if not in a
     # terminal state after a fixed period of time.
-    timeout = 600000 
+    timeout_seconds = 600
     time_start = time.time()
 
     # Wait for the job to complete.
     while job_response.status.state not in terminal_states:
-        if time.time() > time_start + timeout:
+        if time.time() > time_start + timeout_seconds:
             job_client.cancel_job(project_id, region, job_id)
             print('Job {} timed out after threshold of {} seconds.'.format(
-                job_id, timeout / 1000))
+                job_id, timeout_seconds))
 
         # Poll for job termination once a second.
         time.sleep(1)
         job_response = job_client.get_job(project_id, region, job_id)
-        
-    # Cloud Dataproc job output gets saved to a GCS bucket allocated to it. 
-    cluster_info = cluster_client.get_cluster(project_id, region, cluster_name)
+
+    # Cloud Dataproc job output gets saved to a GCS bucket allocated to it.
+    cluster_info = cluster_client.get_cluster(
+        project_id, region, cluster_name)
 
     storage_client = storage.Client()
     bucket = storage_client.get_bucket(cluster_info.config.config_bucket)
     output_blob = (
-        ('google-cloud-dataproc-metainfo/{}/jobs/{}/driveroutput.000000000'.
-        format(cluster_info.cluster_uuid, job_id)))
+        'google-cloud-dataproc-metainfo/{}/jobs/{}/driveroutput.000000000'
+        .format(cluster_info.cluster_uuid, job_id))
     output = bucket.blob(output_blob).download_as_string()
 
     print('Job {} finished with state {}:\n{}'.format(
@@ -119,7 +120,27 @@ def quickstart(project_id, region, cluster_name, job_file_path):
         output))
 
     # Delete the cluster once the job has terminated.
-    cluster_client.delete_cluster(project_id, region, cluster_name).result()
-    
+    operation = cluster_client.delete_cluster(project_id, region, cluster_name)
+    operation.result()
+
     print('Cluster {} successfully deleted.'.format(cluster_name))
-    # [END dataproc_quickstart]
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument('--project_id', type=str,
+                        help='Project to use for creating resources.')
+    parser.add_argument('--region', type=str,
+                        help='Region where the resources should live.')
+    parser.add_argument('--cluster_name', type=str,
+                        help='Name to use for creating a cluster')
+    parser.add_argument('--job_file_path', type=str,
+                        help='Job in GCS to execute against the cluster.')
+
+    args = parser.parse_args()
+    quickstart(args.project_id, args.region,
+               args.cluster_name, args.job_file_path)
+# [END dataproc_quickstart]
