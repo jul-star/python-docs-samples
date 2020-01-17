@@ -21,7 +21,7 @@
     using the Python client library.
 
     Usage:
-        python quickstart.py --project_id <PROJECT_ID> --region <REGION> \
+        python3 quickstart.py --project_id <PROJECT_ID> --region <REGION> \
             --cluster_name <CLUSTER_NAME> --job_file_path <GCS_JOB_FILE_PATH>
 """
 
