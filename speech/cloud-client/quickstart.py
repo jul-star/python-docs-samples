@@ -19,6 +19,7 @@ def run_quickstart():
     # [START speech_quickstart]
     import io
     import os
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "C:/Projects/Python/My First Project-064c717556e1.json"
 
     # Imports the Google Cloud client library
     # [START speech_python_migration_imports]
